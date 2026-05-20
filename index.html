@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mis Finanzas · Sabadell</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    .gradient-header { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 60%, #3b82f6 100%); }
+    select { -webkit-appearance: none; appearance: none; }
+    .drop-active { border-color: #2563eb !important; background: #eff6ff !important; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+  <!-- ░░ HEADER ░░ -->
+  <header class="gradient-header text-white px-5 py-4 sticky top-0 z-50 shadow-lg">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">💳 Mis Finanzas</h1>
+        <p class="text-blue-200 text-xs mt-0.5" id="dataStatus">Sin datos cargados</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnClear" onclick="clearData()"
+          class="hidden bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs font-medium transition-all">
+          🗑 Limpiar
+        </button>
+        <button onclick="document.getElementById('csvInput').click()"
+          class="bg-white text-blue-700 hover:bg-blue-50 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-md flex items-center gap-1.5">
+          📂 <span>Importar CSV</span>
+        </button>
+        <input id="csvInput" type="file" accept=".csv,.txt" class="hidden" onchange="handleFile(event)">
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-6">
+
+    <!-- ░░ EMPTY STATE ░░ -->
+    <div id="uploadArea"
+      class="border-2 border-dashed border-blue-200 rounded-3xl bg-white p-14 text-center cursor-pointer hover:border-blue-400 transition-all"
+      onclick="document.getElementById('csvInput').click()"
+      ondragover="event.preventDefault(); this.classList.add('drop-active')"
+      ondragleave="this.classList.remove('drop-active')"
+      ondrop="handleDrop(event); this.classList.remove('drop-active')">
+      <div class="text-7xl mb-5 select-none">📊</div>
+      <h2 class="text-xl font-semibold text-slate-700 mb-2">Importa tu extracto del Sabadell</h2>
+      <p class="text-slate-400 text-sm mb-6">Arrastra aquí el CSV o haz clic para seleccionarlo</p>
+      <div class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium text-sm transition-all shadow-md shadow-blue-200">
+        📂 Seleccionar archivo
+      </div>
+      <p class="text-slate-300 text-xs mt-6">
+        Banca Online Sabadell → Mis cuentas → Movimientos → Exportar CSV
+      </p>
+    </div>
+
+    <!-- ░░ DASHBOARD ░░ -->
+    <div id="dashboard" class="hidden fade-in space-y-5">
+
+      <!-- Month tabs -->
+      <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1" id="monthTabs"></div>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Total gastado</p>
+          <p class="text-2xl font-bold text-slate-800 mt-1.5" id="statTotal">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Movimientos</p>
+          <p class="text-2xl font-bold text-slate-800 mt-1.5" id="statCount">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <p class="text-xs text-slate-400 font-medium uppercase tracking-wider">Mayor categoría</p>
+          <p class="text-lg font-bold text-slate-800 mt-1.5" id="statTop">—</p>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <h3 class="font-semibold text-slate-700 mb-1 text-sm">Gasto por categoría</h3>
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <h3 class="font-semibold text-slate-700 mb-4 text-sm">Evolución mensual</h3>
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="space-y-3">
+        <div class="relative">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+          <input id="searchInput" type="text" placeholder="Buscar por concepto..."
+            class="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-400 transition shadow-sm"
+            oninput="renderTable()">
+        </div>
+        <div class="flex gap-2 overflow-x-auto scrollbar-hide pb-1" id="categoryFilters"></div>
+      </div>
+
+      <!-- Transaction table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th class="text-left px-4 py-3 text-slate-400 font-medium text-xs uppercase tracking-wider">Fecha</th>
+                <th class="text-left px-4 py-3 text-slate-400 font-medium text-xs uppercase tracking-wider">Concepto</th>
+                <th class="text-right px-4 py-3 text-slate-400 font-medium text-xs uppercase tracking-wider">Importe</th>
+                <th class="text-left px-4 py-3 text-slate-400 font-medium text-xs uppercase tracking-wider">Categoría</th>
+              </tr>
+            </thead>
+            <tbody id="transactionTable"></tbody>
+          </table>
+        </div>
+        <div id="tableEmpty" class="py-14 text-center hidden">
+          <div class="text-4xl mb-2">🔍</div>
+          <p class="text-slate-300 text-sm">Sin movimientos para este filtro</p>
+        </div>
+        <div class="px-4 py-3 border-t border-slate-50 text-right">
+          <span class="text-xs text-slate-300" id="tableCount"></span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ░░ TOAST ░░ -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-sm px-5 py-3 rounded-2xl shadow-xl opacity-0 transition-all duration-300 pointer-events-none z-50">
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════
+    //  CATEGORIES
+    // ═══════════════════════════════════════════
+    const CATS = {
+      'Casa':          { icon:'🏠', color:'#6366f1', bg:'#ede9fe', kw:['alquiler','hipoteca','comunidad propietarios','portero','administrador finca'] },
+      'Supermercado':  { icon:'🛒', color:'#10b981', bg:'#d1fae5', kw:['mercadona','lidl','aldi','carrefour','dia ','eroski','consum','alcampo','supercor','hipercor','bon preu','condis','spar','froiz','ahorra mas','simply','coviran'] },
+      'Restaurantes':  { icon:'🍽️', color:'#f59e0b', bg:'#fef3c7', kw:['restaurante','cafeteria','cafè',' bar ','mcdonalds','burger king','pizza','sushi','kebab','glovo','just eat','deliveroo','uber eats','tapas','cerveceria','heladeria','pasteleria','panaderia'] },
+      'Transporte':    { icon:'🚗', color:'#3b82f6', bg:'#dbeafe', kw:['gasolinera','repsol','bp ','cepsa','shell','galp','cabify','uber','renfe','metro','parking','peaje','tren ','vueling','iberia','ryanair','easyjet','aena','blablacar','bizum transporte','autobus'] },
+      'Recibos':       { icon:'💡', color:'#8b5cf6', bg:'#f5f3ff', kw:['endesa','iberdrola','naturgy','gas natural','aguas de','canal de isabel','aigues','telefonica','movistar','vodafone','orange','jazztel','masmovil','pepephone','simyo','suministros'] },
+      'Seguros':       { icon:'🛡️', color:'#ec4899', bg:'#fdf2f8', kw:['seguro','aseguradora','mutua','axa','mapfre','allianz','generali','zurich','linea directa','ocaso','sanitas','adeslas','asisa','mediator'] },
+      'Deporte':       { icon:'🏋️', color:'#14b8a6', bg:'#f0fdfa', kw:['gimnasio','gym','decathlon','fitness','piscina','padel','tenis','sport','nike','adidas','under armour'] },
+      'Suscripciones': { icon:'📱', color:'#f97316', bg:'#fff7ed', kw:['netflix','spotify','amazon prime','hbo','disney','apple.com','google','youtube','twitch','microsoft','icloud','dropbox','adobe','chatgpt','openai'] },
+      'Salud':         { icon:'💊', color:'#06b6d4', bg:'#ecfeff', kw:['farmacia','medico','clinica','hospital','dentista','optica','laboratorio','fisiotera'] },
+      'Ropa':          { icon:'👗', color:'#a855f7', bg:'#faf5ff', kw:['zara','h&m','hm ','mango','primark','pull&bear','bershka','stradivarius','massimo dutti','cortefiel','springfield','shein','lefties'] },
+      'Otros':         { icon:'❓', color:'#94a3b8', bg:'#f8fafc', kw:[] },
+    };
+    const CAT_NAMES = Object.keys(CATS);
+
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    let allTx = [];
+    let selectedMonth = 'all';
+    let selectedCat = 'all';
+    let donutInstance = null;
+    let barInstance = null;
+    let overrides = JSON.parse(localStorage.getItem('finanzas_overrides') || '{}');
+
+    // ═══════════════════════════════════════════
+    //  FILE HANDLING
+    // ═══════════════════════════════════════════
+    function handleDrop(e) {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) parseCSV(file);
+    }
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (file) parseCSV(file);
+      e.target.value = '';
+    }
+
+    function parseCSV(file) {
+      // Try UTF-8 first, fall back to ISO-8859-1 (common in Spanish banks)
+      Papa.parse(file, {
+        encoding: 'ISO-8859-1',
+        skipEmptyLines: true,
+        complete: r => processData(r.data),
+        error: () => Papa.parse(file, {
+          skipEmptyLines: true,
+          complete: r => processData(r.data)
+        })
+      });
+    }
+
+    function processData(rows) {
+      if (!rows || rows.length < 2) { showToast('⚠️ El CSV parece vacío'); return; }
+
+      // Detect separator: if first row has only 1 column, try splitting by ;
+      let data = rows;
+      if (rows[0].length === 1 && rows[0][0].includes(';')) {
+        data = rows.map(r => r[0].split(';'));
+      }
+
+      const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+      const headers = data[0].map(norm);
+
+      // Detect columns
+      let dateCol    = headers.findIndex(h => h.includes('fecha') || h.includes('data'));
+      let conceptCol = headers.findIndex(h => h.includes('concepto') || h.includes('descripci') || h.includes('movimiento') || h.includes('detalle'));
+      let amountCol  = headers.findIndex(h => h.includes('importe') || h.includes('cantidad') || h.includes('cargo') || h.includes('monto'));
+
+      // Fallback to positional
+      if (dateCol === -1)    dateCol    = 0;
+      if (conceptCol === -1) conceptCol = 1;
+      if (amountCol === -1)  amountCol  = 2;
+
+      const txs = [];
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const rawDate   = String(row[dateCol]    || '').trim();
+        const rawAmount = String(row[amountCol]  || '').trim();
+        const concept   = String(row[conceptCol] || '').trim();
+
+        if (!rawDate || !rawAmount) continue;
+
+        // Parse amount — handle Spanish format: "1.234,56" or "-45,50"
+        const amountStr = rawAmount
+          .replace(/\./g, '')   // remove thousand separator
+          .replace(',', '.');   // decimal comma → dot
+        const amount = parseFloat(amountStr);
+        if (isNaN(amount)) continue;
+
+        // Parse date: DD/MM/YYYY or YYYY-MM-DD
+        let date;
+        if (/\d{2}\/\d{2}\/\d{4}/.test(rawDate)) {
+          const [d, m, y] = rawDate.split('/');
+          date = new Date(`${y}-${m}-${d}`);
+        } else if (/\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+          date = new Date(rawDate);
+        } else {
+          date = new Date(rawDate);
+        }
+        if (isNaN(date.getTime())) continue;
+
+        const id = `${i}_${rawDate}_${concept.slice(0,20)}`;
+        const category = overrides[id] || autoCategorize(concept);
+        txs.push({ id, date, concept, amount, category });
+      }
+
+      if (txs.length === 0) {
+        showToast('⚠️ No se encontraron movimientos. Revisa el formato del CSV.');
+        return;
+      }
+
+      allTx = txs.sort((a, b) => b.date - a.date);
+      selectedMonth = 'all';
+      selectedCat = 'all';
+
+      document.getElementById('uploadArea').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('btnClear').classList.remove('hidden');
+
+      const expenses = allTx.filter(t => t.amount < 0).length;
+      document.getElementById('dataStatus').textContent = `${allTx.length} movimientos · ${expenses} gastos`;
+
+      renderAll();
+      showToast(`✅ ${allTx.length} movimientos importados`);
+    }
+
+    function clearData() {
+      allTx = [];
+      selectedMonth = 'all';
+      selectedCat = 'all';
+      document.getElementById('uploadArea').classList.remove('hidden');
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('btnClear').classList.add('hidden');
+      document.getElementById('dataStatus').textContent = 'Sin datos cargados';
+      document.getElementById('searchInput').value = '';
+      if (donutInstance) { donutInstance.destroy(); donutInstance = null; }
+      if (barInstance)   { barInstance.destroy();   barInstance = null; }
+    }
+
+    // ═══════════════════════════════════════════
+    //  CATEGORIZATION
+    // ═══════════════════════════════════════════
+    function autoCategorize(concept) {
+      const c = concept.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      for (const [cat, data] of Object.entries(CATS)) {
+        if (cat === 'Otros') continue;
+        for (const kw of data.kw) {
+          if (c.includes(kw)) return cat;
+        }
+      }
+      return 'Otros';
+    }
+
+    // ═══════════════════════════════════════════
+    //  FILTERED DATA
+    // ═══════════════════════════════════════════
+    function getFiltered() {
+      const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+      return allTx.filter(t => {
+        if (t.amount >= 0) return false; // solo gastos
+        const mk = monthKey(t.date);
+        if (selectedMonth !== 'all' && mk !== selectedMonth) return false;
+        if (selectedCat !== 'all' && t.category !== selectedCat) return false;
+        if (search && !t.concept.toLowerCase().includes(search)) return false;
+        return true;
+      });
+    }
+
+    const monthKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    // ═══════════════════════════════════════════
+    //  RENDER ALL
+    // ═══════════════════════════════════════════
+    function renderAll() {
+      renderMonthTabs();
+      renderStats();
+      renderDonut();
+      renderBar();
+      renderCategoryFilters();
+      renderTable();
+    }
+
+    // ─── Month tabs ──────────────────────────────
+    function renderMonthTabs() {
+      const months = [...new Set(allTx.map(t => monthKey(t.date)))].sort().reverse();
+      const tabs = [{ key:'all', label:'Todos los meses' }, ...months.map(m => ({
+        key: m,
+        label: `${MONTH_NAMES[parseInt(m.split('-')[1])-1]} ${m.split('-')[0]}`
+      }))];
+      document.getElementById('monthTabs').innerHTML = tabs.map(t => `
+        <button onclick="selectMonth('${t.key}')"
+          class="whitespace-nowrap px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+            selectedMonth === t.key
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-200'
+              : 'bg-white text-slate-600 border border-slate-200 hover:border-blue-300 hover:text-blue-600'
+          }">
+          ${t.label}
+        </button>
+      `).join('');
+    }
+
+    function selectMonth(m) {
+      selectedMonth = m;
+      selectedCat = 'all';
+      renderAll();
+    }
+
+    // ─── Stats ────────────────────────────────────
+    function renderStats() {
+      const f = getFiltered();
+      const total = f.reduce((s, t) => s + Math.abs(t.amount), 0);
+      const byCat = {};
+      f.forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.amount); });
+      const top = Object.entries(byCat).sort((a,b)=>b[1]-a[1])[0];
+      document.getElementById('statTotal').textContent = `${fmt(total)} €`;
+      document.getElementById('statCount').textContent = f.length;
+      document.getElementById('statTop').innerHTML = top
+        ? `${CATS[top[0]]?.icon || ''} ${top[0]}<span class="text-sm font-normal text-slate-400 ml-1">${fmt(top[1])}€</span>`
+        : '—';
+    }
+
+    // ─── Donut chart ───────────────────────────────
+    function renderDonut() {
+      const f = getFiltered();
+      const byCat = {};
+      f.forEach(t => { byCat[t.category] = (byCat[t.category] || 0) + Math.abs(t.amount); });
+      const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+      const labels = sorted.map(([k]) => `${CATS[k]?.icon||''} ${k}`);
+      const values = sorted.map(([,v]) => +v.toFixed(2));
+      const colors = sorted.map(([k]) => CATS[k]?.color || '#94a3b8');
+      if (donutInstance) donutInstance.destroy();
+      donutInstance = new Chart(document.getElementById('donutChart').getContext('2d'), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 3, borderColor: '#fff', hoverOffset: 4 }] },
+        options: {
+          cutout: '68%',
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11, family: 'Inter' }, padding: 12, boxWidth: 11, boxHeight: 11 } },
+            tooltip: { callbacks: { label: c => ` ${c.label}: ${fmt(c.raw)} €` } }
+          }
+        }
+      });
+    }
+
+    // ─── Bar chart ────────────────────────────────
+    function renderBar() {
+      const expenses = allTx.filter(t => t.amount < 0);
+      const byMonth = {};
+      expenses.forEach(t => { const k = monthKey(t.date); byMonth[k] = (byMonth[k]||0) + Math.abs(t.amount); });
+      const months = Object.keys(byMonth).sort();
+      const labels = months.map(m => `${MONTH_NAMES[parseInt(m.split('-')[1])-1]} '${m.slice(2,4)}`);
+      if (barInstance) barInstance.destroy();
+      barInstance = new Chart(document.getElementById('barChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data: months.map(m => +byMonth[m].toFixed(2)),
+            backgroundColor: months.map(m => m === selectedMonth ? '#2563eb' : '#bfdbfe'),
+            borderRadius: 7,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${fmt(c.raw)} €` } }
+          },
+          scales: {
+            y: { grid: { color: '#f1f5f9' }, ticks: { callback: v => `${v}€`, font: { size: 11 } }, border: { display: false } },
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+          },
+          onClick: (_, els) => {
+            if (els.length > 0) selectMonth(months[els[0].index]);
+          }
+        }
+      });
+    }
+
+    // ─── Category filter pills ─────────────────────
+    function renderCategoryFilters() {
+      const inMonth = allTx.filter(t => {
+        if (t.amount >= 0) return false;
+        return selectedMonth === 'all' || monthKey(t.date) === selectedMonth;
+      });
+      const usedCats = [...new Set(inMonth.map(t => t.category))];
+      const cats = ['all', ...CAT_NAMES.filter(c => usedCats.includes(c))];
+      document.getElementById('categoryFilters').innerHTML = cats.map(cat => {
+        const isAll = cat === 'all';
+        const active = isAll ? selectedCat === 'all' : selectedCat === cat;
+        const d = isAll ? { icon:'🔍', color:'#2563eb', bg:'#dbeafe' } : CATS[cat];
+        return `
+          <button onclick="selectCat('${cat}')"
+            class="whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+              active ? 'text-white border-transparent shadow-sm scale-105' : 'bg-white border-slate-200 hover:scale-105'
+            }"
+            style="${active ? `background:${d.color}` : `color:${d.color}`}">
+            ${d.icon} ${isAll ? 'Todas' : cat}
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selectCat(cat) {
+      selectedCat = cat;
+      renderStats();
+      renderDonut();
+      renderCategoryFilters();
+      renderTable();
+    }
+
+    // ─── Transaction table ─────────────────────────
+    function renderTable() {
+      const filtered = getFiltered();
+      const tbody = document.getElementById('transactionTable');
+      const empty = document.getElementById('tableEmpty');
+      const count = document.getElementById('tableCount');
+
+      count.textContent = `${filtered.length} movimiento${filtered.length !== 1 ? 's' : ''}`;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const fmtDate = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+
+      tbody.innerHTML = filtered.map(t => {
+        const cat = CATS[t.category] || CATS['Otros'];
+        const opts = CAT_NAMES.map(c => `<option value="${c}" ${c===t.category?'selected':''}>${CATS[c].icon} ${c}</option>`).join('');
+        return `
+          <tr class="border-b border-slate-50 hover:bg-slate-50/80 transition-colors">
+            <td class="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">${fmtDate(t.date)}</td>
+            <td class="px-4 py-3 max-w-[170px]">
+              <span class="text-slate-700 text-xs block truncate" title="${esc(t.concept)}">${esc(t.concept)}</span>
+            </td>
+            <td class="px-4 py-3 text-right font-semibold text-rose-500 text-sm whitespace-nowrap">
+              -${fmt(Math.abs(t.amount))} €
+            </td>
+            <td class="px-4 py-3">
+              <select onchange="changeCat('${t.id}', this.value)"
+                class="text-xs px-2.5 py-1.5 rounded-lg font-semibold cursor-pointer outline-none transition-all hover:opacity-90"
+                style="background:${cat.bg}; color:${cat.color};">
+                ${opts}
+              </select>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function changeCat(id, newCat) {
+      overrides[id] = newCat;
+      localStorage.setItem('finanzas_overrides', JSON.stringify(overrides));
+      const tx = allTx.find(t => t.id === id);
+      if (tx) tx.category = newCat;
+      renderStats();
+      renderDonut();
+      renderCategoryFilters();
+      renderTable();
+      showToast(`✅ Categoría actualizada a ${CATS[newCat]?.icon} ${newCat}`);
+    }
+
+    // ═══════════════════════════════════════════
+    //  UTILS
+    // ═══════════════════════════════════════════
+    const fmt = n => parseFloat(n).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    let toastTimer;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.style.opacity = '1';
+      el.style.transform = 'translate(-50%, 0)';
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translate(-50%, 8px)';
+      }, 2800);
+    }
+  </script>
+</body>
+</html>
