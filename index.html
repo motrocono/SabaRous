@@ -144,16 +144,76 @@
     //  CATEGORIES
     // ═══════════════════════════════════════════
     const CATS = {
-      'Casa':          { icon:'🏠', color:'#6366f1', bg:'#ede9fe', kw:['alquiler','hipoteca','comunidad propietarios','portero','administrador finca'] },
-      'Supermercado':  { icon:'🛒', color:'#10b981', bg:'#d1fae5', kw:['mercadona','lidl','aldi','carrefour','dia ','eroski','consum','alcampo','supercor','hipercor','bon preu','condis','spar','froiz','ahorra mas','simply','coviran'] },
-      'Restaurantes':  { icon:'🍽️', color:'#f59e0b', bg:'#fef3c7', kw:['restaurante','cafeteria','cafè',' bar ','mcdonalds','burger king','pizza','sushi','kebab','glovo','just eat','deliveroo','uber eats','tapas','cerveceria','heladeria','pasteleria','panaderia'] },
-      'Transporte':    { icon:'🚗', color:'#3b82f6', bg:'#dbeafe', kw:['gasolinera','repsol','bp ','cepsa','shell','galp','cabify','uber','renfe','metro','parking','peaje','tren ','vueling','iberia','ryanair','easyjet','aena','blablacar','bizum transporte','autobus'] },
-      'Recibos':       { icon:'💡', color:'#8b5cf6', bg:'#f5f3ff', kw:['endesa','iberdrola','naturgy','gas natural','aguas de','canal de isabel','aigues','telefonica','movistar','vodafone','orange','jazztel','masmovil','pepephone','simyo','suministros'] },
-      'Seguros':       { icon:'🛡️', color:'#ec4899', bg:'#fdf2f8', kw:['seguro','aseguradora','mutua','axa','mapfre','allianz','generali','zurich','linea directa','ocaso','sanitas','adeslas','asisa','mediator'] },
-      'Deporte':       { icon:'🏋️', color:'#14b8a6', bg:'#f0fdfa', kw:['gimnasio','gym','decathlon','fitness','piscina','padel','tenis','sport','nike','adidas','under armour'] },
-      'Suscripciones': { icon:'📱', color:'#f97316', bg:'#fff7ed', kw:['netflix','spotify','amazon prime','hbo','disney','apple.com','google','youtube','twitch','microsoft','icloud','dropbox','adobe','chatgpt','openai'] },
-      'Salud':         { icon:'💊', color:'#06b6d4', bg:'#ecfeff', kw:['farmacia','medico','clinica','hospital','dentista','optica','laboratorio','fisiotera'] },
-      'Ropa':          { icon:'👗', color:'#a855f7', bg:'#faf5ff', kw:['zara','h&m','hm ','mango','primark','pull&bear','bershka','stradivarius','massimo dutti','cortefiel','springfield','shein','lefties'] },
+      'Casa':          { icon:'🏠', color:'#6366f1', bg:'#ede9fe', kw:[
+                          'alquiler','hipoteca','comunidad propietarios','portero','administrador finca',
+                          'inmobiliaria','agencia inmobiliaria','arrendamiento','cuota hipoteca',
+                        ]},
+      'Supermercado':  { icon:'🛒', color:'#10b981', bg:'#d1fae5', kw:[
+                          'mercadona','lidl','aldi','carrefour','dia ','eroski','consum','alcampo',
+                          'supercor','hipercor','bon preu','condis','spar','froiz','ahorra mas',
+                          'simply','coviran','supermercado','supercoop','el corte ingles aliment',
+                          'market','cash','autoservicio',
+                        ]},
+      'Restaurantes':  { icon:'🍽️', color:'#f59e0b', bg:'#fef3c7', kw:[
+                          'restaurante','cafeteria','cafè','cafe ',' bar ','mcdonalds','burger king',
+                          'pizza','sushi','kebab','glovo','just eat','deliveroo','uber eats','tapas',
+                          'cerveceria','heladeria','pasteleria','panaderia','hamburgueseria',
+                          'asador','braseria','marisqueria','taberna','terraza','gastropub',
+                          'dominos','telepizza','foster','vips','100 montaditos',
+                        ]},
+      'Transporte':    { icon:'🚗', color:'#3b82f6', bg:'#dbeafe', kw:[
+                          'gasolinera','repsol','bp ','cepsa','shell','galp','cabify','uber',
+                          'renfe','metro','parking','peaje','tren ','vueling','iberia','ryanair',
+                          'easyjet','aena','blablacar','autobus','emt ','tmb ','fgc ',
+                          'rodalies','cercanias','autopista','estacion de servicio',
+                          'combustible','carburante','aparcamiento','bicing','valenbisi',
+                          'sevici','motosharing','cooltra','acciona moto','garage',
+                        ]},
+      'Recibos':       { icon:'💡', color:'#8b5cf6', bg:'#f5f3ff', kw:[
+                          'endesa','iberdrola','naturgy','gas natural','aguas de','canal de isabel',
+                          'aigues','telefonica','movistar','vodafone','orange','jazztel','masmovil',
+                          'pepephone','simyo','suministros','internet','fibra','adsl','tarifa plana',
+                          'factura luz','factura gas','factura agua','electricidad','enel',
+                          'e.on','holaluz','factor energia','soma energia','recibo luz',
+                          'recibo gas','recibo agua','recibo telefono','recibo internet',
+                          'comunidad de regantes','ciclo agua',
+                        ]},
+      'Seguros':       { icon:'🛡️', color:'#ec4899', bg:'#fdf2f8', kw:[
+                          'seguro','aseguradora','mutua','axa','mapfre','allianz','generali',
+                          'zurich','linea directa','ocaso','sanitas','adeslas','asisa','mediator',
+                          'reale','helvetia','prima seguro','poliza','previsora','pelayo',
+                          'fiatc','dkv','caser',
+                        ]},
+      'Deporte':       { icon:'🏋️', color:'#14b8a6', bg:'#f0fdfa', kw:[
+                          'gimnasio','gym','decathlon','fitness','piscina','padel','tenis','sport',
+                          'triatlon','triatlón','marathon','maraton','maratón','running','trail',
+                          'crossfit','yoga','pilates','spinning','atletismo','natacion','natación',
+                          'ciclismo','escalada','senderismo','surf','snowboard','esqui','ski',
+                          'futbol','baloncesto','voleibol','rugby','boxeo','karate','judo',
+                          'federacion','club deportivo','polideportivo','estadio','sporting',
+                          'athletic','intersport','sprinter','nike','adidas','under armour',
+                          'asics','new balance','salomon','garmin','polar','suunto',
+                        ]},
+      'Suscripciones': { icon:'📱', color:'#f97316', bg:'#fff7ed', kw:[
+                          'netflix','spotify','amazon prime','hbo','disney','apple.com','google',
+                          'youtube','twitch','microsoft','icloud','dropbox','adobe','chatgpt',
+                          'openai','paramount','dazn','filmin','apple music','audible',
+                          'kindle','nintendo','playstation','xbox','steam','epic games',
+                          'canva','notion','slack','zoom','subscripcion','suscripcion',
+                        ]},
+      'Salud':         { icon:'💊', color:'#06b6d4', bg:'#ecfeff', kw:[
+                          'farmacia','medico','clinica','hospital','dentista','optica','laboratorio',
+                          'fisiotera','psicologo','nutricionista','endocrino','dermatologo',
+                          'traumatologo','ortopedia','protesico','audifono','gafas','lentillas',
+                          'para farmacia','parafarmacia','dr.','dra.','consulta medica',
+                          'centro medico','centro salud','mutua medica',
+                        ]},
+      'Ropa':          { icon:'👗', color:'#a855f7', bg:'#faf5ff', kw:[
+                          'zara','h&m','hm ','mango','primark','pull&bear','bershka','stradivarius',
+                          'massimo dutti','cortefiel','springfield','shein','lefties','el corte ingles moda',
+                          'calzedonia','intimissimi','oysho','sfera','tezenis','women secret',
+                          'invisalign','vans','converse','zalando','about you',
+                        ]},
       'Otros':         { icon:'❓', color:'#94a3b8', bg:'#f8fafc', kw:[] },
     };
     const CAT_NAMES = Object.keys(CATS);
@@ -385,7 +445,20 @@
     //  CATEGORIZATION
     // ═══════════════════════════════════════════
     function autoCategorize(concept) {
-      const c = concept.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      // Quitar prefijos típicos de Sabadell antes de buscar
+      const prefijos = [
+        'compra tarjeta ','pago con tarjeta ','pago tarjeta ','compra en ',
+        'recibo ','domiciliacion ','domiciliación ','transferencia a ',
+        'transferencia de ','bizum enviado a ','bizum recibido de ',
+        'cargo recibo ','pago recibo ','liquidacion ','liquidación ',
+        'comision ','comisión ','cuota ','abono ','ingreso ',
+      ];
+      let c = concept.toLowerCase()
+                     .normalize('NFD')
+                     .replace(/[̀-ͯ]/g, '');
+      for (const p of prefijos) {
+        if (c.startsWith(p)) { c = c.slice(p.length); break; }
+      }
       for (const [cat, data] of Object.entries(CATS)) {
         if (cat === 'Otros') continue;
         for (const kw of data.kw) {
