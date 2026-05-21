@@ -242,12 +242,30 @@
     // ═══════════════════════════════════════════
     //  STATE
     // ═══════════════════════════════════════════
-    let allTx = [];
+    let allTx = JSON.parse(localStorage.getItem('finanzas_tx') || '[]')
+                  .map(t => ({ ...t, date: new Date(t.date) }));
     let selectedMonth = 'all';
     let selectedCat = 'all';
     let donutInstance = null;
     let barInstance = null;
     let overrides = JSON.parse(localStorage.getItem('finanzas_overrides') || '{}');
+
+    function saveTx() {
+      localStorage.setItem('finanzas_tx', JSON.stringify(allTx));
+    }
+
+    // Arrancar con datos si ya hay guardados
+    window.addEventListener('DOMContentLoaded', () => {
+      if (allTx.length > 0) {
+        document.getElementById('uploadArea').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('btnClear').classList.remove('hidden');
+        const expenses = allTx.filter(t => t.amount < 0).length;
+        document.getElementById('dataStatus').textContent =
+          `${allTx.length} movimientos · ${expenses} gastos`;
+        renderAll();
+      }
+    });
 
     // ═══════════════════════════════════════════
     //  FILE HANDLING
@@ -434,7 +452,12 @@
         return;
       }
 
-      allTx = txs.sort((a, b) => b.date - a.date);
+      // Fusionar con los existentes, evitando duplicados por id
+      const existingIds = new Set(allTx.map(t => t.id));
+      const newTxs = txs.filter(t => !existingIds.has(t.id));
+      allTx = [...allTx, ...newTxs].sort((a, b) => b.date - a.date);
+      saveTx();
+
       selectedMonth = 'all';
       selectedCat = 'all';
 
@@ -444,13 +467,40 @@
 
       const expenses = allTx.filter(t => t.amount < 0).length;
       document.getElementById('dataStatus').textContent = `${allTx.length} movimientos · ${expenses} gastos`;
-
       renderAll();
-      showToast(`✅ ${allTx.length} movimientos importados`);
+      const msg = newTxs.length > 0
+        ? `✅ ${newTxs.length} movimientos nuevos añadidos`
+        : '⚠️ Estos movimientos ya estaban importados';
+      showToast(msg);
     }
 
     function clearData() {
+      // Si hay un mes seleccionado, borrar solo ese mes
+      if (selectedMonth !== 'all') {
+        const label = document.querySelector(`#monthTabs button.bg-blue-600`)?.textContent?.trim() || selectedMonth;
+        if (!confirm(`¿Borrar todos los movimientos de ${label}?`)) return;
+        allTx = allTx.filter(t => monthKey(t.date) !== selectedMonth);
+        saveTx();
+        selectedMonth = 'all';
+        if (allTx.length === 0) {
+          document.getElementById('uploadArea').classList.remove('hidden');
+          document.getElementById('dashboard').classList.add('hidden');
+          document.getElementById('btnClear').classList.add('hidden');
+          document.getElementById('dataStatus').textContent = 'Sin datos cargados';
+          if (donutInstance) { donutInstance.destroy(); donutInstance = null; }
+          if (barInstance)   { barInstance.destroy();   barInstance = null; }
+        } else {
+          renderAll();
+          const expenses = allTx.filter(t => t.amount < 0).length;
+          document.getElementById('dataStatus').textContent = `${allTx.length} movimientos · ${expenses} gastos`;
+        }
+        showToast('🗑 Mes borrado');
+        return;
+      }
+      // Borrar todo
+      if (!confirm('¿Borrar TODOS los movimientos guardados?')) return;
       allTx = [];
+      localStorage.removeItem('finanzas_tx');
       selectedMonth = 'all';
       selectedCat = 'all';
       document.getElementById('uploadArea').classList.remove('hidden');
@@ -460,6 +510,7 @@
       document.getElementById('searchInput').value = '';
       if (donutInstance) { donutInstance.destroy(); donutInstance = null; }
       if (barInstance)   { barInstance.destroy();   barInstance = null; }
+      showToast('🗑 Todos los datos borrados');
     }
 
     // ═══════════════════════════════════════════
@@ -694,7 +745,7 @@
       overrides[id] = newCat;
       localStorage.setItem('finanzas_overrides', JSON.stringify(overrides));
       const tx = allTx.find(t => t.id === id);
-      if (tx) tx.category = newCat;
+      if (tx) { tx.category = newCat; saveTx(); }
       renderStats();
       renderDonut();
       renderCategoryFilters();
